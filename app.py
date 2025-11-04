@@ -234,6 +234,14 @@ def analyze_match(home_team, away_team):
     except Exception as e:
         return jsonify({'error': f'Erro na análise: {str(e)}'}), 500
 
+@app.route('/')
+def home():
+    return jsonify({
+        'message': '⚽ API de Previsões de Futebol',
+        'status': 'online',
+        'endpoints': ['/predictions', '/predictions/neural', '/best-combo']
+    })
+
 @app.route('/best-combo', methods=['GET'])
 def get_best_combo():
     """Retorna a melhor combinação do dia baseada em análise estatística"""

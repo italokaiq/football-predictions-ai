@@ -2,7 +2,7 @@
 builder = "DOCKERFILE"
 
 [deploy]
-startCommand = "python deploy.py && gunicorn app:app"
-healthcheckPath = "/predictions"
-healthcheckTimeout = 100
+startCommand = "python run.py"
+healthcheckPath = "/"
+healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"
