@@ -308,4 +308,5 @@ def get_best_combo():
 if __name__ == '__main__':
     init_db()
     port = int(os.environ.get('PORT', 5000))
+    print(f"🚀 Iniciando servidor na porta {port}")
     app.run(debug=False, host='0.0.0.0', port=port)
