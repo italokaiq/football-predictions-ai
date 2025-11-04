@@ -7,6 +7,32 @@ def create_sample_data():
     conn = sqlite3.connect('football.db')
     cursor = conn.cursor()
     
+    # Inicializa tabelas se não existirem
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS games (
+            id INTEGER PRIMARY KEY,
+            home_team TEXT,
+            away_team TEXT,
+            date TEXT,
+            home_goals INTEGER,
+            away_goals INTEGER,
+            competition TEXT
+        )
+    ''')
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS team_stats (
+            id INTEGER PRIMARY KEY,
+            team_name TEXT,
+            goals_scored REAL,
+            goals_conceded REAL,
+            wins INTEGER,
+            draws INTEGER,
+            losses INTEGER,
+            last_updated TEXT
+        )
+    ''')
+    
     # Times de exemplo
     teams = [
         'Real Madrid', 'Barcelona', 'Manchester City', 'Liverpool',
