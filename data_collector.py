@@ -13,54 +13,101 @@ class DataCollector:
         self.api_key = os.getenv('FOOTBALL_API_KEY', 'your_api_key_here')
         self.base_url = 'https://api.football-data.org/v4'
         self.headers = {'X-Auth-Token': self.api_key}
+        
+        # IDs das ligas específicas
+        self.leagues = {
+            'Premier League': 'PL',
+            'La Liga': 'PD', 
+            'Serie A': 'SA',
+            'Brasileirão': 'BSA',
+            'Liga Argentina': 'PPL'
+        }
     
-    def collect_matches(self, days_back=30):
-        """Coleta partidas dos últimos N dias"""
+    def collect_matches_by_leagues(self, days_back=30):
+        """Coleta partidas das ligas específicas"""
         conn = sqlite3.connect('football.db')
         cursor = conn.cursor()
         
         end_date = datetime.now()
         start_date = end_date - timedelta(days=days_back)
         
-        try:
-            response = requests.get(
-                f'{self.base_url}/matches',
-                headers=self.headers,
-                params={
-                    'dateFrom': start_date.strftime('%Y-%m-%d'),
-                    'dateTo': end_date.strftime('%Y-%m-%d'),
-                    'status': 'FINISHED'
-                }
-            )
-            
-            if response.status_code == 200:
-                matches = response.json().get('matches', [])
+        total_matches = 0
+        
+        for league_name, league_code in self.leagues.items():
+            try:
+                response = requests.get(
+                    f'{self.base_url}/competitions/{league_code}/matches',
+                    headers=self.headers,
+                    params={
+                        'dateFrom': start_date.strftime('%Y-%m-%d'),
+                        'dateTo': end_date.strftime('%Y-%m-%d')
+                    }
+                )
                 
-                for match in matches:
-                    if match['status'] == 'FINISHED' and match['score']['fullTime']['home'] is not None:
+                if response.status_code == 200:
+                    matches = response.json().get('matches', [])
+                    
+                    for match in matches:
                         cursor.execute('''
                             INSERT OR REPLACE INTO games 
-                            (id, home_team, away_team, date, home_goals, away_goals, competition)
-                            VALUES (?, ?, ?, ?, ?, ?, ?)
+                            (id, home_team, away_team, date, home_goals, away_goals, competition, league_code)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                         ''', (
                             match['id'],
                             match['homeTeam']['name'],
                             match['awayTeam']['name'],
                             match['utcDate'],
-                            match['score']['fullTime']['home'],
-                            match['score']['fullTime']['away'],
-                            match['competition']['name']
+                            match['score']['fullTime']['home'] if match['status'] == 'FINISHED' else None,
+                            match['score']['fullTime']['away'] if match['status'] == 'FINISHED' else None,
+                            league_name,
+                            league_code
                         ))
+                    
+                    total_matches += len(matches)
+                    print(f"Coletadas {len(matches)} partidas da {league_name}")
+                else:
+                    print(f"Erro na API para {league_name}: {response.status_code}")
+                    
+            except Exception as e:
+                print(f"Erro ao coletar {league_name}: {e}")
+        
+        conn.commit()
+        conn.close()
+        print(f"Total: {total_matches} partidas coletadas")
+    
+    def get_today_matches(self):
+        """Busca jogos de hoje das ligas específicas"""
+        today = datetime.now().strftime('%Y-%m-%d')
+        all_matches = []
+        
+        for league_name, league_code in self.leagues.items():
+            try:
+                response = requests.get(
+                    f'{self.base_url}/competitions/{league_code}/matches',
+                    headers=self.headers,
+                    params={
+                        'dateFrom': today,
+                        'dateTo': today
+                    }
+                )
                 
-                conn.commit()
-                print(f"Coletadas {len(matches)} partidas")
-            else:
-                print(f"Erro na API: {response.status_code}")
-                
-        except Exception as e:
-            print(f"Erro ao coletar partidas: {e}")
-        finally:
-            conn.close()
+                if response.status_code == 200:
+                    matches = response.json().get('matches', [])
+                    for match in matches:
+                        all_matches.append({
+                            'id': match['id'],
+                            'homeTeam': match['homeTeam']['name'],
+                            'awayTeam': match['awayTeam']['name'],
+                            'date': match['utcDate'],
+                            'competition': league_name,
+                            'league_code': league_code,
+                            'status': match['status']
+                        })
+                        
+            except Exception as e:
+                print(f"Erro ao buscar jogos de hoje da {league_name}: {e}")
+        
+        return all_matches
     
     def update_team_stats(self):
         """Atualiza estatísticas dos times"""
@@ -130,7 +177,7 @@ class DataCollector:
     def daily_update(self):
         """Atualização diária automática"""
         print(f"Iniciando atualização diária - {datetime.now()}")
-        self.collect_matches(days_back=7)  # Últimos 7 dias
+        self.collect_matches_by_leagues(days_back=7)  # Últimos 7 dias
         self.update_team_stats()
         print("Atualização concluída")
 
@@ -151,8 +198,8 @@ if __name__ == "__main__":
     collector = DataCollector()
     
     # Primeira coleta
-    print("Fazendo coleta inicial...")
-    collector.collect_matches(days_back=90)
+    print("Fazendo coleta inicial das ligas específicas...")
+    collector.collect_matches_by_leagues(days_back=90)
     collector.update_team_stats()
     
     # Inicia agendador

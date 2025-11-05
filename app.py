@@ -31,7 +31,8 @@ def init_db():
             date TEXT,
             home_goals INTEGER,
             away_goals INTEGER,
-            competition TEXT
+            competition TEXT,
+            league_code TEXT
         )
     ''')
     
@@ -65,38 +66,28 @@ def init_db():
 
 @app.route('/games', methods=['GET'])
 def get_games():
-    """Retorna jogos do dia"""
+    """Retorna jogos do dia das ligas específicas"""
     try:
-        headers = {'X-Auth-Token': API_KEY}
-        today = date.today().strftime('%Y-%m-%d')
+        from data_collector import DataCollector
+        collector = DataCollector()
         
-        # Busca jogos de hoje
-        response = requests.get(
-            f'{API_BASE_URL}/matches',
-            headers=headers,
-            params={'dateFrom': today, 'dateTo': today}
-        )
+        # Busca jogos de hoje das ligas específicas
+        games = collector.get_today_matches()
         
-        if response.status_code == 200:
-            data = response.json()
-            games = []
-            
-            for match in data.get('matches', []):
-                games.append({
-                    'id': match['id'],
-                    'homeTeam': match['homeTeam']['name'],
-                    'awayTeam': match['awayTeam']['name'],
-                    'date': match['utcDate'],
-                    'competition': match['competition']['name'],
-                    'status': match['status']
-                })
-            
-            return jsonify({'games': games})
+        if games:
+            return jsonify({
+                'games': games,
+                'total': len(games),
+                'leagues': list(set([game['competition'] for game in games]))
+            })
         else:
-            return jsonify({'error': 'Erro ao buscar jogos'}), 500
+            return jsonify({
+                'games': [],
+                'message': 'Nenhum jogo encontrado hoje nas ligas: Premier League, La Liga, Serie A, Brasileirão, Liga Argentina'
+            })
             
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': f'Erro ao buscar jogos: {str(e)}'}), 500
 
 @app.route('/stats/<team_name>', methods=['GET'])
 def get_team_stats(team_name):
@@ -140,46 +131,88 @@ def get_neural_predictions():
 
 @app.route('/predictions', methods=['GET'])
 def get_predictions():
-    """Retorna previsões do dia com análise estatística"""
-    analyzer = StatsAnalyzer()
-    
-    # Jogos de exemplo para demonstração
-    sample_matches = [
-        ('Real Madrid', 'Barcelona'),
-        ('Manchester City', 'Liverpool'),
-        ('Bayern Munich', 'PSG'),
-        ('Chelsea', 'Arsenal')
-    ]
-    
-    predictions = []
-    
-    for home_team, away_team in sample_matches:
-        probs = analyzer.calculate_match_probabilities(home_team, away_team)
+    """Retorna previsões baseadas nos jogos reais das ligas específicas"""
+    try:
+        from data_collector import DataCollector
+        analyzer = StatsAnalyzer()
+        collector = DataCollector()
         
-        # Melhor aposta baseada nas probabilidades
-        best_bet = 'Over 2.5 gols' if probs['over_2_5_prob'] > 0.6 else 'Under 2.5 gols'
-        best_prob = probs['over_2_5_prob'] if probs['over_2_5_prob'] > 0.6 else (1 - probs['over_2_5_prob'])
+        # Busca jogos de hoje das ligas específicas
+        today_games = collector.get_today_matches()
         
-        if probs['home_win_prob'] > best_prob:
-            best_bet = f'Vitória {home_team}'
-            best_prob = probs['home_win_prob']
-        elif probs['away_win_prob'] > best_prob:
-            best_bet = f'Vitória {away_team}'
-            best_prob = probs['away_win_prob']
+        predictions = []
         
-        predictions.append({
-            'game': f'{home_team} vs {away_team}',
-            'prediction': best_bet,
-            'probability': round(best_prob, 3),
-            'confidence': probs['confidence'],
-            'expected_goals': probs['expected_goals'],
-            'home_win': probs['home_win_prob'],
-            'draw': probs['draw_prob'],
-            'away_win': probs['away_win_prob'],
-            'over_2_5': probs['over_2_5_prob']
+        # Se não há jogos hoje, usa jogos de exemplo das ligas
+        if not today_games:
+            sample_matches = [
+                ('Manchester City', 'Liverpool', 'Premier League'),
+                ('Real Madrid', 'Barcelona', 'La Liga'),
+                ('Juventus', 'Inter Milan', 'Serie A'),
+                ('Flamengo', 'Palmeiras', 'Brasileirão'),
+                ('Boca Juniors', 'River Plate', 'Liga Argentina')
+            ]
+            
+            for home_team, away_team, league in sample_matches:
+                probs = analyzer.calculate_match_probabilities(home_team, away_team)
+                
+                # Melhor aposta baseada nas probabilidades
+                best_bet = 'Over 2.5 gols' if probs['over_2_5_prob'] > 0.6 else 'Under 2.5 gols'
+                best_prob = probs['over_2_5_prob'] if probs['over_2_5_prob'] > 0.6 else (1 - probs['over_2_5_prob'])
+                
+                if probs['home_win_prob'] > best_prob:
+                    best_bet = f'Vitória {home_team}'
+                    best_prob = probs['home_win_prob']
+                elif probs['away_win_prob'] > best_prob:
+                    best_bet = f'Vitória {away_team}'
+                    best_prob = probs['away_win_prob']
+                
+                predictions.append({
+                    'game': f'{home_team} vs {away_team}',
+                    'league': league,
+                    'prediction': best_bet,
+                    'probability': round(best_prob, 3),
+                    'confidence': probs['confidence'],
+                    'expected_goals': probs['expected_goals'],
+                    'home_win': probs['home_win_prob'],
+                    'draw': probs['draw_prob'],
+                    'away_win': probs['away_win_prob'],
+                    'over_2_5': probs['over_2_5_prob']
+                })
+        else:
+            # Usa jogos reais de hoje
+            for game in today_games[:5]:  # Limita a 5 jogos
+                probs = analyzer.calculate_match_probabilities(game['homeTeam'], game['awayTeam'])
+                
+                best_bet = 'Over 2.5 gols' if probs['over_2_5_prob'] > 0.6 else 'Under 2.5 gols'
+                best_prob = probs['over_2_5_prob'] if probs['over_2_5_prob'] > 0.6 else (1 - probs['over_2_5_prob'])
+                
+                if probs['home_win_prob'] > best_prob:
+                    best_bet = f'Vitória {game["homeTeam"]}'
+                    best_prob = probs['home_win_prob']
+                elif probs['away_win_prob'] > best_prob:
+                    best_bet = f'Vitória {game["awayTeam"]}'
+                    best_prob = probs['away_win_prob']
+                
+                predictions.append({
+                    'game': f'{game["homeTeam"]} vs {game["awayTeam"]}',
+                    'league': game['competition'],
+                    'prediction': best_bet,
+                    'probability': round(best_prob, 3),
+                    'confidence': probs['confidence'],
+                    'expected_goals': probs['expected_goals'],
+                    'home_win': probs['home_win_prob'],
+                    'draw': probs['draw_prob'],
+                    'away_win': probs['away_win_prob'],
+                    'over_2_5': probs['over_2_5_prob']
+                })
+        
+        return jsonify({
+            'predictions': predictions,
+            'leagues_covered': ['Premier League', 'La Liga', 'Serie A', 'Brasileirão', 'Liga Argentina']
         })
-    
-    return jsonify({'predictions': predictions})
+        
+    except Exception as e:
+        return jsonify({'error': f'Erro ao gerar previsões: {str(e)}'}), 500
 
 @app.route('/analyze/neural/<home_team>/<away_team>', methods=['GET'])
 def analyze_match_neural(home_team, away_team):

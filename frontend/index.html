@@ -72,7 +72,7 @@
             try {
                 const API_BASE = window.location.hostname === 'localhost' ? 
                     'http://localhost:5000' : 
-                    'https://api-de-futebol-atic597ww-italo-kaiqs-projects.vercel.app';
+                    'https://football-predictions-ai-1bfb.onrender.com';
                     
                 const [predRes, neuralRes, comboRes] = await Promise.all([
                     axios.get(`${API_BASE}/predictions`),

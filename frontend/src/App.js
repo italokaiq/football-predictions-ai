@@ -5,8 +5,9 @@ function App() {
   const [predictions, setPredictions] = useState([]);
   const [neuralPredictions, setNeuralPredictions] = useState([]);
   const [bestCombo, setBestCombo] = useState(null);
+  const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('neural');
+  const [activeTab, setActiveTab] = useState('games');
 
   useEffect(() => {
     fetchData();
@@ -14,12 +15,14 @@ function App() {
 
   const fetchData = async () => {
     try {
-      const [predRes, neuralRes, comboRes] = await Promise.all([
+      const [gamesRes, predRes, neuralRes, comboRes] = await Promise.all([
+        axios.get('/games'),
         axios.get('/predictions'),
         axios.get('/predictions/neural'),
         axios.get('/best-combo')
       ]);
       
+      setGames(gamesRes.data.games || []);
       setPredictions(predRes.data.predictions || []);
       setNeuralPredictions(neuralRes.data.predictions || []);
       setBestCombo(comboRes.data);
@@ -60,7 +63,7 @@ function App() {
             ⚽ Previsões de Futebol IA
           </h1>
           <p className="text-gray-600 mt-2">
-            Análise inteligente com Machine Learning e Redes Neurais
+            Premier League • La Liga • Serie A • Brasileirão • Liga Argentina
           </p>
         </div>
       </header>
@@ -70,6 +73,16 @@ function App() {
         <div className="mb-8">
           <div className="border-b border-gray-200">
             <nav className="-mb-px flex space-x-8">
+              <button
+                onClick={() => setActiveTab('games')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'games'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                🏆 Jogos de Hoje
+              </button>
               <button
                 onClick={() => setActiveTab('neural')}
                 className={`py-2 px-1 border-b-2 font-medium text-sm ${
@@ -103,6 +116,56 @@ function App() {
             </nav>
           </div>
         </div>
+
+        {/* Games Today */}
+        {activeTab === 'games' && (
+          <div className="space-y-6">
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <h3 className="font-semibold text-green-900 mb-2">🏆 Jogos de Hoje</h3>
+              <p className="text-green-700 text-sm">
+                Premier League • La Liga • Serie A • Brasileirão • Liga Argentina
+              </p>
+            </div>
+            
+            {games.length > 0 ? (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {games.map((game, index) => (
+                  <div key={index} className="bg-white rounded-lg shadow-md p-4">
+                    <div className="text-center">
+                      <div className="text-xs text-gray-500 mb-2">{game.competition}</div>
+                      <div className="font-semibold text-gray-900 mb-1">
+                        {game.homeTeam}
+                      </div>
+                      <div className="text-gray-600 text-sm mb-1">vs</div>
+                      <div className="font-semibold text-gray-900 mb-2">
+                        {game.awayTeam}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {new Date(game.date).toLocaleTimeString('pt-BR', {
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </div>
+                      <div className={`inline-block px-2 py-1 rounded text-xs mt-2 ${
+                        game.status === 'SCHEDULED' ? 'bg-blue-100 text-blue-800' :
+                        game.status === 'LIVE' ? 'bg-red-100 text-red-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {game.status === 'SCHEDULED' ? 'Agendado' :
+                         game.status === 'LIVE' ? 'Ao Vivo' : game.status}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-gray-600">Nenhum jogo encontrado hoje nas ligas selecionadas</p>
+                <p className="text-sm text-gray-500 mt-2">Verifique novamente mais tarde</p>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Neural Predictions */}
         {activeTab === 'neural' && (
@@ -151,31 +214,43 @@ function App() {
 
         {/* Statistical Predictions */}
         {activeTab === 'stats' && (
-          <div className="grid gap-6 md:grid-cols-2">
-            {predictions.map((pred, index) => (
-              <div key={index} className="bg-white rounded-lg shadow-md p-6">
-                <div className="flex justify-between items-start mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">{pred.game}</h3>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getConfidenceColor(pred.confidence)}`}>
-                    {pred.confidence}
-                  </span>
-                </div>
-                
-                <div className="space-y-3">
-                  <div className="bg-gray-50 rounded p-3">
-                    <p className="font-medium text-gray-900 mb-1">📈 Previsão:</p>
-                    <p className="text-blue-600 font-semibold">{pred.prediction}</p>
-                    <p className="text-sm text-gray-600">Probabilidade: {(pred.probability * 100).toFixed(1)}%</p>
+          <div className="space-y-6">
+            <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+              <h3 className="font-semibold text-purple-900 mb-2">📊 Análise das Principais Ligas</h3>
+              <p className="text-purple-700 text-sm">
+                Previsões baseadas em estatísticas históricas e forma recente dos times
+              </p>
+            </div>
+            
+            <div className="grid gap-6 md:grid-cols-2">
+              {predictions.map((pred, index) => (
+                <div key={index} className="bg-white rounded-lg shadow-md p-6">
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">{pred.game}</h3>
+                      {pred.league && <p className="text-sm text-gray-500">{pred.league}</p>}
+                    </div>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getConfidenceColor(pred.confidence)}`}>
+                      {pred.confidence}
+                    </span>
                   </div>
                   
-                  {pred.expected_goals && (
-                    <p className="text-sm text-gray-600">
-                      Gols esperados: {pred.expected_goals}
-                    </p>
-                  )}
+                  <div className="space-y-3">
+                    <div className="bg-gray-50 rounded p-3">
+                      <p className="font-medium text-gray-900 mb-1">📈 Previsão:</p>
+                      <p className="text-blue-600 font-semibold">{pred.prediction}</p>
+                      <p className="text-sm text-gray-600">Probabilidade: {(pred.probability * 100).toFixed(1)}%</p>
+                    </div>
+                    
+                    {pred.expected_goals && (
+                      <p className="text-sm text-gray-600">
+                        Gols esperados: {pred.expected_goals}
+                      </p>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         )}
 
