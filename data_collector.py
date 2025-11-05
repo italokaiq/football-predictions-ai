@@ -10,7 +10,7 @@ load_dotenv()
 
 class DataCollector:
     def __init__(self):
-        self.api_key = os.getenv('FOOTBALL_API_KEY', 'your_api_key_here')
+        self.api_key = os.getenv('FOOTBALL_API_KEY', 'f9c2bbc9a86c4c0b8a843cf67c364a0e')
         self.base_url = 'https://api.football-data.org/v4'
         self.headers = {'X-Auth-Token': self.api_key}
         

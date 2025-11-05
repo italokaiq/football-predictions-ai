@@ -14,7 +14,7 @@ app = Flask(__name__)
 CORS(app)
 
 # Configuração da API
-API_KEY = os.getenv('FOOTBALL_API_KEY', 'your_api_key_here')
+API_KEY = os.getenv('FOOTBALL_API_KEY', 'f9c2bbc9a86c4c0b8a843cf67c364a0e')
 API_BASE_URL = 'https://api.football-data.org/v4'
 
 def init_db():
