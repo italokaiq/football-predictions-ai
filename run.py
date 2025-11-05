@@ -30,7 +30,7 @@ def setup_system():
     if game_count == 0:
         print("📥 Coletando dados iniciais...")
         collector = DataCollector()
-        collector.collect_matches(days_back=30)
+        collector.collect_matches_by_leagues(days_back=30)
         collector.update_team_stats()
         
         print("🤖 Treinando modelos ML...")

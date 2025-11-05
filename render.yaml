@@ -3,7 +3,7 @@ services:
     name: football-predictions-api
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: python app.py
+    startCommand: python deploy_fix.py
     envVars:
       - key: PORT
         value: 10000
