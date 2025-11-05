@@ -342,4 +342,11 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get('PORT', 5000))
     print(f"🚀 Iniciando servidor na porta {port}")
-    app.run(debug=False, host='0.0.0.0', port=port)
+    
+    # Configuração para produção
+    import os
+    if os.environ.get('RENDER'):
+        from werkzeug.serving import WSGIRequestHandler
+        WSGIRequestHandler.protocol_version = "HTTP/1.1"
+    
+    app.run(debug=False, host='0.0.0.0', port=port, threaded=True)

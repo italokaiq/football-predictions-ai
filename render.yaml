@@ -1,9 +1,13 @@
 services:
   - type: web
-    name: football-predictions-ai
+    name: football-predictions-api
     env: python
-    buildCommand: "pip install --upgrade pip && pip install -r requirements.txt"
-    startCommand: "python simple_app.py"
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app.py
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.0
+      - key: PORT
+        value: 10000
+      - key: FOOTBALL_API_KEY
+        value: your_api_key_here
+      - key: TF_CPP_MIN_LOG_LEVEL
+        value: 2
